@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-export PROJECT_DIR=/llmft/llmft
+
+export PROJECT_DIR=/Users/magazov-d/Documents/omscs/cs7643_dl/llmft
 source $PROJECT_DIR/scripts/misc/setup.sh
 
 # -----------------------------------------------------------------------------------------------------------------------
@@ -9,4 +10,4 @@ source $PROJECT_DIR/scripts/misc/setup.sh
 
 export NCCL_DEBUG=INFO
 
-bash $PROJECT_DIR/scripts/in_context/mnli/run_minimal.sh mnli 2 facebook/opt-125m 1 60000
+bash $PROJECT_DIR/scripts/in_context/mnli/run_minimal_simplest.sh mnli 2 facebook/opt-125m 1 60000

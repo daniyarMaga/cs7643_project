@@ -1,12 +1,11 @@
 # setup basic paths
-export CACHE_BASE_DIR=/llmft/llmft/cache
-export OUTPUT_DIR=/llmft/llmft/logfiles
+export CACHE_BASE_DIR=/cache
+export OUTPUT_DIR=/logfiles
 
 # setup wandb
 export WANDB_DISABLED=false
 export WANDB_API_KEY=
 export WANDB_USERNAME=
-export WANDB_ENTITY=
 export WANDB_CACHE_DIR=$CACHE_BASE_DIR/wandb
 export WANDB_CONFIG_DIR=$WANDB_CACHE_DIR
 

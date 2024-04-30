@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-export PROJECT_DIR=/llmft/llmft
-source $PROJECT_DIR/scripts/misc/setup.sh
+export PROJECT_DIR=.
+source $PROJECT_DIR/scripts/misc/setup_colab_daniyar.sh
 
 # -----------------------------------------------------------------------------------------------------------------------
 # run ICL experiments for MNLI
@@ -9,4 +9,9 @@ source $PROJECT_DIR/scripts/misc/setup.sh
 
 export NCCL_DEBUG=INFO
 
-bash $PROJECT_DIR/scripts/in_context/mnli/run_minimal.sh mnli 2 facebook/opt-125m 1 60000
+export DS_VERBOSE=1
+export CUDA_VISIBLE_DEVICES=0
+export USE_TF=0
+export PYTHONPATH=.
+
+bash $PROJECT_DIR/scripts/in_context/mnli/run_teacher_outputs_cpu.sh mnli 16 facebook/opt-125m 1 60000

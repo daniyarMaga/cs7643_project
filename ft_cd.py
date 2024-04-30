@@ -54,8 +54,6 @@ from models.opt_wrapper import OPTWithClassifier, OPTWithLMClassifier
 from models.llama_wrapper import LlamaWithLMClassifier
 from models.gptneox_wrapper import GPTNeoXWithLMClassifier
 
-import pickle
-
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.23.1")
 
@@ -87,7 +85,7 @@ def main():
 
     # Enable/disable wandb logging
     # os.environ["WANDB_DISABLED"] = f"{wandb_args.disable_wandb}"
-    print("0 KL TYPE ", ft_args.kl_type)
+
     # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -151,6 +149,10 @@ def main():
     # Load training and validation datasets
     raw_datasets, label_list, num_labels, is_regression = load_glue_datasets(
         data_args, model_args, reuse=True)
+
+
+
+
 
     additional_evaluation_datasets = {}
 
@@ -247,7 +249,6 @@ def main():
 
     elif "facebook/opt" in model_args.model_name_or_path:
         if ft_args.target_tokens is not None:
-            config.kl_type = ft_args.kl_type
             model = OPTWithLMClassifier.from_pretrained(
                 model_args.model_name_or_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -474,9 +475,8 @@ def main():
             max_train_samples = min(
                 len(train_dataset), data_args.max_train_samples)
             indices = np.random.choice(
-                range(len(train_dataset)), size=max_train_samples, replace=False)
+                range(len(train_dataset)), size=max_train_samples max_train_samples, replace=False)
             train_dataset = train_dataset.select(indices)
-            train_dataset.save_to_disk('train_dataset')
 
     if training_args.do_eval:
         # we fix the random seed that controls the sampling of the validation data
@@ -533,9 +533,6 @@ def main():
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on training dataset",
             )
-            train_dataset.save_to_disk('final_train_dataset')
-
-
 
         if training_args.do_eval:
             eval_dataset = eval_dataset.map(
@@ -666,16 +663,6 @@ def main():
             eval_datasets = eval_dataset
     else:
         eval_datasets = None
-    with open(f'teacher_outputs/predictions_{max_train_samples}_{ft_args.num_shots}_{training_args.data_seed}.pkl', 'rb') as f:
-        predictions = pickle.load(f)
-    # train_dataset['label']=predictions
-
-    def replace_labels(example, idx, labels):
-        example['label'] = labels[idx].tolist()
-        return example
-
-    train_dataset = train_dataset.map(lambda x, idx: replace_labels(x, idx, predictions), with_indices=True)
-
     trainer = FtTrainer(
         model=model,
         args=training_args,

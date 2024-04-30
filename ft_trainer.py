@@ -137,11 +137,13 @@ class FtWandbCallback(TrainerCallback):
                                  data_args, **ft_args, **combined_dict}
 
             if self._wandb.run is None:
+                # print("WANDB ARGS ARE ", wandb_args)
                 self._wandb.init(
                     project=wandb_args.wandb_project_name,
                     dir=wandb_args.wandb_output_dir,
                     name=wandb_args.wandb_run_name,
                     group=wandb_args.wandb_group_name,
+                    entity=wandb_args.wandb_entity
                 )
             # add config parameters (run may have been created manually)
             self._wandb.config.update(combined_dict, allow_val_change=True)
@@ -377,6 +379,7 @@ class FtTrainer(Trainer):
         # Data loader and number of training steps
         train_dataloader = self.get_train_dataloader()
 
+
         # Setting up training control variables:
         # number of training epochs: num_train_epochs
         # number of training steps per epoch: num_update_steps_per_epoch
@@ -597,6 +600,7 @@ class FtTrainer(Trainer):
             step = -1
             for step, inputs in enumerate(epoch_iterator):
 
+
                 # Skip past any already trained steps if resuming training
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
@@ -623,6 +627,7 @@ class FtTrainer(Trainer):
                         tr_loss_step = self.training_step(model, inputs)
                 else:
                     tr_loss_step = self.training_step(model, inputs)
+                # print("LOSS INSIDE FT_TRAINER IS ", tr_loss_step)
 
                 if (
                     args.logging_nan_inf_filter
@@ -804,21 +809,21 @@ class FtTrainer(Trainer):
             total_l2_dist = 0.0
             l2_dist_per_param = {}
 
-            if self.model_starting_params is not None:
-                for n, p in model.module.named_parameters():
-                    if n in self.trainable_params_names:
-                        # Compute L2 distance between starting_params and current params
-                        sp = self.model_starting_params[n].to(model.device)
-                        l2_dist = torch.dist(
-                            torch.flatten(sp), torch.flatten(p), p=2)
-                        l2_dist_per_param[n] = l2_dist.item()
-                        total_l2_dist += l2_dist.item()
-
-                logs["total_l2-dist"] = total_l2_dist
-
-                if self.ft_args.log_l2_dist_per_weight:
-                    for k, v in l2_dist_per_param.items():
-                        logs[f"{k}.l2-dist"] = v
+            # if self.model_starting_params is not None:
+            #     for n, p in model.module.named_parameters():
+            #         if n in self.trainable_params_names:
+            #             # Compute L2 distance between starting_params and current params
+            #             sp = self.model_starting_params[n].to(model.device)
+            #             l2_dist = torch.dist(
+            #                 torch.flatten(sp), torch.flatten(p), p=2)
+            #             l2_dist_per_param[n] = l2_dist.item()
+            #             total_l2_dist += l2_dist.item()
+            #
+            #     logs["total_l2-dist"] = total_l2_dist
+            #
+            #     if self.ft_args.log_l2_dist_per_weight:
+            #         for k, v in l2_dist_per_param.items():
+            #             logs[f"{k}.l2-dist"] = v
 
             self.log(logs)
 
@@ -1091,11 +1096,14 @@ class FtTrainer(Trainer):
         # Metrics!
         if self.compute_metrics is not None and all_preds is not None and all_labels is not None:
             if args.include_inputs_for_metrics:
+                print("GOT HERE AT EVALUATION LOOP. ALL_PREDS SHAPE IS ", all_preds.shape)
                 metrics = self.compute_metrics(
                     EvalPrediction(predictions=all_preds,
                                    label_ids=all_labels, inputs=all_inputs)
                 )
             else:
+                print("GOT HERE AT EVALUATION LOOP 2. ALL_PREDS SHAPE IS ", all_preds.shape)
+
                 metrics = self.compute_metrics(EvalPrediction(
                     predictions=all_preds, label_ids=all_labels))
         else:

@@ -1,6 +1,7 @@
 import logging
 import pandas as pd
 import numpy as np
+import pickle
 
 from datasets import load_dataset, ClassLabel
 
@@ -87,7 +88,7 @@ def save_dataset(dataset, path):
     df.to_csv(path, columns=dataset_dict.keys())
 
 
-def load_glue_datasets(data_args, model_args):
+def load_glue_datasets(data_args, model_args, reuse=False):
     # Get the datasets: specify a GLUE benchmark task (the dataset will be downloaded automatically from the datasets Hub).
     #
     # In distributed training, the load_dataset function guarantee that only one local process can concurrently
@@ -96,8 +97,15 @@ def load_glue_datasets(data_args, model_args):
     if data_args.task_name is not None:
         if data_args.task_name == "mnli":
             # convert to binary format (remove neutral class)
-            raw_datasets = load_dataset(
-                "glue", data_args.task_name, cache_dir=data_args.dataset_cache_dir)
+            if reuse:
+                with open('mnli_train_subset.pkl', 'rb') as f:
+                    raw_datasets = pickle.load(f)
+            else:
+                raw_datasets = load_dataset(
+                    "glue", data_args.task_name, cache_dir=data_args.dataset_cache_dir)
+                with open('mnli_train_subset.pkl', 'wb') as f:
+                    pickle.dump(raw_datasets, f)
+                print("DATASET IS SAVED LOCALLY")
 
             raw_datasets = raw_datasets.filter(
                 lambda example: example["label"] != 1)

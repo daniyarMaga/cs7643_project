@@ -27,9 +27,13 @@ for seed in "0"
 do
     for data_seed in "0" 
     do
-	python $PROJECT_DIR/ft.py \
+	deepspeed \
+	    --include localhost:0 \
+            --master_port $port \
+	    $PROJECT_DIR/cd.py \
+	    --wandb_entity "daniyar-magazov" \
             --wandb_project_name llmft-experiments \
-            --wandb_group_name pattern-verbalizer-ft \
+            --wandb_group_name pattern-verbalizer-cd \
             --model_name_or_path $model_name_or_path \
             --cache_dir $HF_MODELS_CACHE \
             --task_name $1 \
@@ -42,7 +46,7 @@ do
             --overwrite_output_dir \
             --do_train \
             --max_train_samples $max_train_samples \
-	    --max_eval_samples 15 \
+	    --max_eval_samples 1000 \
             --per_device_train_batch_size $bsz \
             --gradient_accumulation_steps 1 \
             --num_train_epochs $epochs \
@@ -56,9 +60,13 @@ do
             --per_device_eval_batch_size 10 \
             --eval_on_hans \
             --save_strategy no \
+	    --fp16 \
             --seed $seed \
             --data_seed $data_seed \
+	    --deepspeed $PROJECT_DIR/deepspeed_configs/ds_config_zero3.json \
+            --deepspeed_stage 3 \
             --report_to "none" \
-	    --kl_type "top_n"
+	    --kl_type "top_n" \
+	    --num_shots 16
     done
 done

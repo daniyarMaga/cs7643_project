@@ -90,7 +90,7 @@ def _load_model(model_args):
     )
 
     if "facebook/opt" in model_args.model_name_or_path:
-        config.kl_type = 'all'
+        config.kl_type = "all"
         model = OPTWithLMClassifier.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -184,8 +184,8 @@ def main():
             json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args, in_context_args = parser.parse_args_into_dataclasses()
-    print("1 DATA ARGS ARE: ", data_args)
-    print("2 MODEL ARGS ARE: ", model_args)
+    # print("1 DATA ARGS ARE: ", data_args)
+    # print("2 MODEL ARGS ARE: ", model_args)
 
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
@@ -223,48 +223,19 @@ def main():
     # ------------------- load data -------------------
 
     # Load training dataset and validation set for in-domain data
-    print("3 EVERYTHING WORKS UNTIL LOAD DATA")
+    # print("3 EVERYTHING WORKS UNTIL LOAD DATA")
     if data_args.task_name in ["rte", "mnli", "mnli-original", "qqp", "cola"]:
         raw_datasets, label_list, num_labels, is_regression = load_glue_datasets(
             data_args, model_args, reuse=True)
-        print("4 LOADING GLUE MNLI IS DONE")
+        # print("4 LOADING GLUE MNLI IS DONE")
 
-    additional_evaluation_datasets = {}
-    if data_args.eval_task_name == "hans":
-        for heuristic in ["lexical_overlap"]:
-            # for heuristic in ["lexical_overlap", "subsequence", "constituent"]:
-            # Load HANS subsets as additional validation data
-            for label in [0, 1]:
-                hans_subset, subset_name = load_hans_dataset(
-                    data_args.dataset_cache_dir, heuristic=heuristic, subcase=None, label=label)
-                additional_evaluation_datasets[subset_name] = hans_subset
-                print("LOADING HANS IS DONE")
-
-    elif data_args.eval_task_name == "mnli-mismatched":
-        # Load mnli mismatched validation set
-        for label in [0, 1]:
-            mnli_mm_subset, subset_name = load_mnli_mismatched_dataset(
-                data_args, label=label)
-            additional_evaluation_datasets[subset_name] = mnli_mm_subset
-
-    elif data_args.eval_task_name == "paws-qqp":
-        for label in [0, 1]:
-            paws_qqp_subset, subset_name = load_paws_qqp_dataset(
-                data_args.eval_task_path, label=label, cache_dir=data_args.dataset_cache_dir)
-            additional_evaluation_datasets[subset_name] = paws_qqp_subset
-
-    elif data_args.eval_task_name == "cola-ood":
-        for label in [0, 1]:
-            cola_ood_subset, subset_name = load_cola_ood_dataset(
-                data_args.eval_task_path, label=label, cache_dir=data_args.dataset_cache_dir)
-            additional_evaluation_datasets[subset_name] = cola_ood_subset
 
     # -------------------------------------------------
 
     # ------------------ load model -------------------
 
     config, tokenizer, model = _load_model(model_args)
-    print("5 MODEL IS LOADED")
+    # print("5 MODEL IS LOADED")
 
     # -------------------------------------------------
 
@@ -323,7 +294,7 @@ def main():
         model.config.label2id = {l: i for i, l in enumerate(label_list)}
         model.config.id2label = {
             id: label for label, id in config.label2id.items()}
-    print("7 MODEL LABELS:")
+    # print("7 MODEL LABELS:")
     print(model.config.label2id)
     print(model.config.id2label)
 
@@ -335,7 +306,7 @@ def main():
     target_token_to_id = {t: idx for idx, t in enumerate(target_tokens)}
     token_id_to_label_id = {tidx: lidx for lidx,
                             tidx in enumerate(target_tokens_ids)}
-    print("8 TOKEN TO LABEL IS DONE")
+    # print("8 TOKEN TO LABEL IS DONE")
 
     # Compute max_seq_length
     if data_args.max_seq_length > tokenizer.model_max_length:
@@ -347,8 +318,8 @@ def main():
     max_seq_length = min(data_args.max_seq_length, tokenizer.model_max_length)
 
     # -------------------------------------------------
-
-
+    # print("CONTEXT ARGS DESC: ", in_context_args.task_description)
+    # print("CONTEXT ARGS TARGET PREFIX: ", in_context_args.target_prefix)
     # Create in-context learning prompt from training data
     context, contex_indices = create_few_shot_context(
         data_args.task_name, raw_datasets["train"], in_context_args.num_shots, pattern=in_context_args.pattern,
@@ -358,8 +329,9 @@ def main():
         from_indices=in_context_args.sample_indices_file, balanced=in_context_args.balanced, shuffle=in_context_args.shuffle,
         seed=training_args.data_seed
     )
-    print("9 PROMPT IS CREATED")
-    print(context)
+    context = context+"Now here is the query pair:"+in_context_args.separate_shots_by
+    # print("9 PROMPT IS CREATED")
+    # print(context)
     # inspect context
     logger.info("Using the following context:")
     logger.info(context)
@@ -367,9 +339,12 @@ def main():
     # tokenize context
     result = tokenizer(context, padding=padding,
                        max_length=max_seq_length, truncation=False)
-    print("10 TOKENIZING CONTEXT IS DONE")
-    print(result["input_ids"])
-    print(len(result["input_ids"]))
+
+    # with open('training_output_logits.pkl', 'rb') as f:
+    #     logits = pickle.load(f)
+    # print("10 TOKENIZING CONTEXT IS DONE")
+    # print(result["input_ids"])
+    # print(len(result["input_ids"]))
     if len(result["input_ids"]) > max_seq_length:
         # we skip the current run. The context is too long
         print("Context is too long. Skipping run")
@@ -417,35 +392,24 @@ def main():
     if training_args.do_eval:
         print("11 DO EVAL IS TRUE")
         # Get the in-domain validation dataset
-        eval_dataset = raw_datasets["validation_matched" if data_args.task_name in
+        eval_dataset = raw_datasets["train" if data_args.task_name in
                                     ["mnli", "mnli-original"] else "validation"]
 
         # (optional) subsample eval datasets
-        if data_args.max_eval_samples is not None:
+        if data_args.max_train_samples is not None:
             # we fix the random seed that controls the sampling
             # we need to uses a fixed seed here to make sure we evaluate on the same data
-            np.random.seed(123)
+            np.random.seed(training_args.data_seed)
 
-            max_eval_samples = min(
-                len(eval_dataset), data_args.max_eval_samples)
+            max_train_samples = min(
+                len(eval_dataset), data_args.max_train_samples)
             # randomly select a subset of the eval data
             indices = np.random.choice(
-                range(len(eval_dataset)), size=max_eval_samples, replace=False)
+                range(len(eval_dataset)), size=max_train_samples, replace=False)
             eval_dataset = eval_dataset.select(indices)
+        # eval_dataset.save_to_disk('teacher_outputs/initial_dataset')
 
-        for name, dataset in additional_evaluation_datasets.items():
-            if data_args.max_eval_samples is not None:
-                # we fix the random seed that controls the sampling
-                # we need to uses a fixed seed here to make sure we evaluate on the same data
-                np.random.seed(123)
 
-                max_eval_samples = min(
-                    len(dataset), data_args.max_eval_samples)
-                # randomly select a subset of the eval data
-                indices = np.random.choice(
-                    range(len(dataset)), size=max_eval_samples, replace=False)
-                dataset = dataset.select(indices)
-                additional_evaluation_datasets[name] = dataset
 
         # set all random seeds again (not sure if this is really needed)
         set_seed(training_args.seed)
@@ -458,13 +422,6 @@ def main():
                 names=names, num_classes=len(tokenizer))
             eval_dataset = eval_dataset.cast(new_features)
 
-            for name, dataset in additional_evaluation_datasets.items():
-                new_features = dataset.features.copy()
-                names = [f"{idx}" for idx in np.arange(len(tokenizer))]
-                new_features["label"] = ClassLabel(
-                    names=names, num_classes=len(tokenizer))
-                additional_evaluation_datasets[name] = dataset.cast(
-                    new_features)
 
         # Tokenize and encode validation datasets
         with training_args.main_process_first(desc="dataset map pre-processing"):
@@ -476,32 +433,19 @@ def main():
                 desc="Running tokenizer on dataset",
             )
 
-            for name, dataset in additional_evaluation_datasets.items():
-                sentence1_key, sentence2_key = task_to_keys[data_args.eval_task_name]
-                dataset = dataset.map(
-                    preprocess_function,
-                    batched=True,
-                    batch_size=1000,
-                    load_from_cache_file=False,
-                    desc="Running tokenizer on dataset",
-                )
-                additional_evaluation_datasets[name] = dataset
 
-    # Log a few random samples from the validation set:
-    for index in random.sample(range(len(eval_dataset)), 1):
-        logger.info(
-            f"Sample {index} of the validation set: {eval_dataset[index]}.")
+
 
     # Iterate over the validation set and make sure the last token is a padding token
     keep_counter = {}
     keep_indices = []
-    print(f"START OF EVAL DATASET WITH LENGTH {eval_dataset.shape}")
+    # print(f"START OF EVAL DATASET WITH LENGTH {eval_dataset.shape}")
     for sample in eval_dataset:
         # assert sample["input_ids"][-1] == tokenizer.pad_token_id, sample["input_text"]
         if sample["input_ids"][-1] == tokenizer.pad_token_id:
             # the last position is a padding token
             keep_indices.append(sample["idx"])
-    print(f"END OF EVAL DATASET")
+    # print(f"END OF EVAL DATASET")
 
     # keep only those eval samples that fit into the context
     keep_num_samples = len(keep_indices)
@@ -513,30 +457,10 @@ def main():
         logger.info("Skipping the current run. The prompt is too long.")
         return
 
-    additional_evaluation_datasets_tmp = {}
-    for name, dataset in additional_evaluation_datasets.items():
-        keep_indices = []
-        for sample in dataset:
-            # assert sample["input_ids"][-1] == tokenizer.pad_token_id, sample["input_text"]
-            if sample["input_ids"][-1] == tokenizer.pad_token_id:
-                keep_indices.append(sample["idx"])
-        # keep only those eval samples that fit into the context
-        keep_num_samples = len(keep_indices)
-        if keep_num_samples > 0:
-            logger.info(f"Keeping {keep_num_samples} validation examples")
-            tmp_dataset = _select_subset_by_idx(dataset, keep_indices)
-            additional_evaluation_datasets_tmp[name] = tmp_dataset
-            keep_counter[name] = keep_num_samples
-        else:
-            logger.info("Skipping the current run. The prompt is too long.")
-            return
-
-    additional_evaluation_datasets = additional_evaluation_datasets_tmp
-
     # assert False, "for all inputs, <pad> is the last token"
 
     # --------------- End preprocessing of the raw_datasets ---------------
-    print("12 PREPROCESSING IS DONE")
+    # print("12 PREPROCESSING IS DONE")
     # You can define your custom compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a
     # predictions and label_ids field) and has to return a dictionary string to float.
 
@@ -545,7 +469,6 @@ def main():
 
         preds = p.predictions[0] if isinstance(
             p.predictions, tuple) else p.predictions
-        print("PREDS SHAPE ", preds.shape)
         labels = p.label_ids
         predicted_token_ids = np.argmax(preds, axis=1)
         # get the logits for each of the target tokens
@@ -600,40 +523,38 @@ def main():
 
         # Get datasets
         eval_task_names = [data_args.task_name]
-        eval_task_names += [task_name for task_name in additional_evaluation_datasets.keys()]
         eval_datasets = [eval_dataset]
-        eval_datasets += [dataset for _,
-                          dataset in additional_evaluation_datasets.items()]
+        # eval_dataset.save_to_disk('teacher_outputs/final_dataset')
 
         all_results = {}
-        print("13 LENGTH OF EVAL_TASK_NAMES", eval_task_names)
-        print("14 LENGTH OF EVAL_TASK_NAMES", eval_datasets)
+        # print("13 LENGTH OF EVAL_TASK_NAMES", eval_task_names)
+        # print("14 LENGTH OF EVAL_TASK_NAMES", eval_datasets)
 
         for task_name, dataset in zip(eval_task_names, eval_datasets):
-            print("PREDICTION START")
+            # print("PREDICTION START")
             outputs = trainer.predict(
                 dataset, metric_key_prefix=task_name, ignore_keys=["past_key_values"])
-            print("PREDICTION END")
+            # print("PREDICTION END")
 
             predictions = outputs.predictions
-            print(predictions)
+            # print(predictions)
 
             labels = outputs.label_ids
             metrics = outputs.metrics
             all_results = {**metrics, **all_results}
-            with open(f'icl_predictions_{task_name}.pkl', 'wb') as f:
+            with open(f'teacher_outputs/predictions_{max_train_samples}_{in_context_args.num_shots}_{training_args.data_seed}.pkl', 'wb') as f:
                 pickle.dump(predictions, f)
-            with open(f'icl_metrics_{task_name}.pkl', 'wb') as f:
-                pickle.dump(metrics, f)
-            with open(f'icl_labels_{task_name}.pkl', 'wb') as f:
-                pickle.dump(labels, f)
-        with open(f'icl_all_results.pkl', 'wb') as f:
-            pickle.dump(all_results, f)
+        #     with open(f'teacher_outputs/metrics.pkl', 'wb') as f:
+        #         pickle.dump(metrics, f)
+        #     with open(f'teacher_outputs/labels_{task_name}.pkl', 'wb') as f:
+        #         pickle.dump(labels, f)
+        # with open(f'teacher_outputs/results.pkl', 'wb') as f:
+        #     pickle.dump(all_results, f)
             # output_predict_file = os.path.join(
             #     training_args.output_dir, f"predict_results_{task}.txt")
 
         if trainer.is_world_process_zero():
-            print("15 WORLD PROCESS IS ZERO")
+            # print("15 WORLD PROCESS IS ZERO")
 
             #     with open(output_predict_file, "w") as writer:
             #         logger.info(f"***** Predict results {task} *****")
@@ -651,31 +572,12 @@ def main():
             all_results["context"] = context
             all_results["data_seed"] = training_args.data_seed
             all_results["keep_samples_in-domain"] = keep_counter["in-domain"]
-            for name in additional_evaluation_datasets.keys():
-                all_results[f"keep_samples_{name}"] = keep_counter[name]
 
             df = _create_df(all_results)
 
-            if "llama" in model_args.model_name_or_path:
-                name = model_args.model_name_or_path.split("/")
-                MODEL_NAME = f"{name[-3]}-{name[-2]}-{name[-1]}"
+            # df.to_csv("teacher_outputs/final_result.csv", index=False)
 
-                file_name = f"{MODEL_NAME}" + \
-                    f"_{data_args.task_name}" + \
-                    f"_{data_args.eval_task_name}"
 
-            else:
-                file_name = f"{model_args.model_name_or_path.replace('/', '-')}" + \
-                    f"_{data_args.task_name}" + \
-                    f"_{data_args.eval_task_name}"
-
-            output_file = os.path.join(
-                training_args.output_dir, f"{file_name}.csv")
-            if os.path.exists(output_file):
-                # if the file already exists, we append to it
-                df.to_csv(output_file, mode='a', header=False)
-            else:
-                df.to_csv(output_file)
 
 
 def _mp_fn(index):

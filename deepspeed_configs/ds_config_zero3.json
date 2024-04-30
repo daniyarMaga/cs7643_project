@@ -1,6 +1,6 @@
 {
     "fp16": {
-        "enabled": "auto",
+        "enabled": false,
         "loss_scale": 0,
         "loss_scale_window": 1000,
         "initial_scale_power": 16,
@@ -26,7 +26,7 @@
         }
     },
     "zero_optimization": {
-        "stage": 3,
+        "stage": 0,
         "stage3_gather_16bit_weights_on_model_save": false,
         "reduce_scatter": true,
         "overlap_comm": true,

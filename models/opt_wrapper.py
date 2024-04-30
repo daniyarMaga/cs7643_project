@@ -15,6 +15,10 @@ from transformers.utils import logging
 
 from transformers.deepspeed import is_deepspeed_zero3_enabled
 
+import pickle
+import torch.nn.functional as F
+
+
 logger = logging.get_logger(__name__)
 
 
@@ -623,6 +627,7 @@ class OPTWithClassifier(OPTForSequenceClassification):
 class OPTWithLMClassifier(OPTForCausalLM):
     def __init__(self, config):
         super().__init__(config)
+        self.kl_type = config.kl_type
 
     def _init_weights(self, module):
         super()._init_weights(module)
@@ -648,6 +653,10 @@ class OPTWithLMClassifier(OPTForCausalLM):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
 
+        #
+        # with open(f'training_labels.pkl', 'wb') as f:
+        #     pickle.dump(labels, f)
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -666,16 +675,22 @@ class OPTWithLMClassifier(OPTForCausalLM):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-
+        # with open(f'training_input_ids.pkl', 'wb') as f:
+        #     pickle.dump(input_ids, f)
+        # print("INSIDE FORWARD KL TYPE ", self.kl_type)
         # logits.shape = (bsz, seq_len, vocab_size)
         logits = self.lm_head(outputs[0])
+        # with open(f'training_output_logits.pkl', 'wb') as f:
+        #     pickle.dump(logits, f)
 
         # In the classification setting we only care about the last prediction
         # Get the position of the last non-padding token
         sequence_lengths = torch.ne(
             input_ids, self.config.pad_token_id).sum(-1) - 1
+        # print("SEQUENCE LENGTH ", sequence_lengths)
         logits = logits[torch.arange(
             input_ids.shape[0], device=logits.device), sequence_lengths]
+        # print("LOGITS SHAPE AFTER", logits.shape)
 
         loss = None
         if labels is not None:
@@ -683,11 +698,20 @@ class OPTWithLMClassifier(OPTForCausalLM):
             # move labels to correct device to enable model parallelism
             labels = labels.to(logits.device)
             labels = labels.contiguous()
+            if labels.dtype == torch.float32:
+                log_probs_model = F.log_softmax(logits, dim=-1)
+                probs_teacher = F.softmax(labels, dim=-1)
+                # print(log_probs_model.shape)
+                # print(probs_teacher.shape)
 
-            # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            loss = loss_fct(
-                logits.view(-1, self.config.vocab_size), labels.view(-1))
+
+                # Calculate KL divergence
+                loss = F.kl_div(log_probs_model, probs_teacher, reduction='batchmean')
+                # print("KL LOSS IS ", loss)
+            elif labels.dtype == torch.int64:
+                loss_fct = CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.config.vocab_size), labels.view(-1))
+                # print("CE LOSS IS ", loss)
 
         if not return_dict:
             output = (logits,) + outputs[1:]

@@ -27,9 +27,10 @@ for seed in "0"
 do
     for data_seed in "0" 
     do
-	python $PROJECT_DIR/ft.py \
+	python $PROJECT_DIR/cd.py \
+	    --wandb_entity "daniyar-magazov" \
             --wandb_project_name llmft-experiments \
-            --wandb_group_name pattern-verbalizer-ft \
+            --wandb_group_name pattern-verbalizer-cd \
             --model_name_or_path $model_name_or_path \
             --cache_dir $HF_MODELS_CACHE \
             --task_name $1 \
@@ -42,7 +43,7 @@ do
             --overwrite_output_dir \
             --do_train \
             --max_train_samples $max_train_samples \
-	    --max_eval_samples 15 \
+	    --max_eval_samples 100 \
             --per_device_train_batch_size $bsz \
             --gradient_accumulation_steps 1 \
             --num_train_epochs $epochs \
@@ -53,12 +54,13 @@ do
             --weight_decay 0.0 \
             --do_eval \
             --evaluation_strategy epoch \
-            --per_device_eval_batch_size 10 \
+            --per_device_eval_batch_size 20 \
             --eval_on_hans \
             --save_strategy no \
             --seed $seed \
             --data_seed $data_seed \
             --report_to "none" \
-	    --kl_type "top_n"
+	    --kl_type "top_n" \
+	    --num_shots 16
     done
 done

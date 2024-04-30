@@ -376,6 +376,15 @@ def main():
         # we need to convert the label ids to target ids
         target_tokens = [t.strip() for t in ft_args.target_tokens.split(",")]
         target_tokens_ids = tokenizer.convert_tokens_to_ids(target_tokens)
+        id_to_target_token = {idx: t for idx, t in enumerate(target_tokens)}
+        target_token_to_id = {t: idx for idx, t in enumerate(target_tokens)}
+        token_id_to_label_id = {tidx: lidx for lidx,
+                                               tidx in enumerate(target_tokens_ids)}
+        print("ID TO TARGET TOKEN ", id_to_target_token)
+        print("TOKEN ID TO LABEL ID ", token_id_to_label_id)
+        print("DECODE PRED MOST COMMON", tokenizer.decode(3216))
+        print("DECODE PRED MOST COMMON 2", tokenizer.decode(440))
+
 
         model.config.label2id = {
             l: target_tokens_ids[i] for i, l in enumerate(label_list)}
@@ -442,7 +451,9 @@ def main():
             #     f"{idx}" for idx in np.arange(len(tokenizer))]
 
             new_features = raw_datasets[split].features.copy()
+            print("NEW FEATIRES: ", new_features)
             names = [f"{idx}" for idx in np.arange(len(tokenizer))]
+            print("LENGTH OF TOKENIZER ", len(tokenizer))
             new_features["label"] = ClassLabel(
                 names=names, num_classes=len(tokenizer))
             raw_datasets[split] = raw_datasets[split].cast(new_features)
@@ -610,13 +621,40 @@ def main():
     # You can define your custom compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a
     # predictions and label_ids field) and has to return a dictionary string to float.
     def compute_metrics(p: EvalPrediction):
+
+
+
+
         preds = p.predictions[0] if isinstance(
             p.predictions, tuple) else p.predictions
+
+        class_logits = [[logits[target_tokens_ids[0]], logits[target_tokens_ids[1]]]
+                        for _, logits in enumerate(preds)]
+        class_logits = np.asarray(class_logits)
+
+        labels = p.label_ids
+        print("CLASS LOGITS ARE ", class_logits)
+        print("LABELS ARE ", labels)
+
+
         preds = np.squeeze(
             preds) if is_regression else np.argmax(preds, axis=1)
 
+
         if data_args.task_name is not None:
             result = metric.compute(predictions=preds, references=p.label_ids)
+
+            scores = []
+            for idx, batch_logits in enumerate(class_logits):
+                # we get the class id of the label token
+                class_id = token_id_to_label_id[labels[idx]]
+                # does it receive larger probability than the other classes?
+                predicted_token_class = np.argmax(batch_logits)
+                score = predicted_token_class == class_id
+                scores.append(score)
+
+            scores = np.asarray(scores)
+            result["score_accuracy"] = np.mean(scores)
 
             # When using the lm_head, compute fraction of predictions that are not one of the target tokens
             if ft_args.target_tokens is not None and not ft_args.target_tokens_logits_only:

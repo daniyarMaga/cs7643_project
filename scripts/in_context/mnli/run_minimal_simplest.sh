@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-OUTPUT_DIR=/llmft/llmft/logfiles/in_context_eval
+OUTPUT_DIR=/Users/magazov-d/Documents/omscs/cs7643_dl/llmft/logfiles/in_context_eval
 mkdir -p $OUTPUT_DIR
 
 # args: task_name, num_shots, model_name_or_path, gpu, port
@@ -37,7 +37,10 @@ port=$5
 
 for data_seed in 0 1 2 3 4 5 6 7 8 9
 do
-    python $PROJECT_DIR/eval.py \
+    deepspeed \
+        --include localhost:0,1,2,3,4,5,6,7 \
+        --master_port $port \
+        $PROJECT_DIR/eval.py \
         --model_name_or_path $model_name_or_path \
         --cache_dir $HF_MODELS_CACHE \
         --task_name $task_name \
@@ -55,9 +58,9 @@ do
         --num_shots $num_shots \
         --balanced \
         --shuffle \
+        --fp16 \
         --seed 0 \
         --data_seed $data_seed \
-        --report_to "none" \
-	--max_train_samples 100 \
-	--max_eval_samples 10
+        --deepspeed $PROJECT_DIR/deepspeed_configs/ds_config_zero3.json \
+        --report_to "none"
 done

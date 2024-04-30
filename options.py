@@ -61,6 +61,9 @@ class WandbArguments:
     wandb_output_dir: Optional[str] = field(
         default=None, metadata={"help": "Where to store the wandb logfiles."}
     )
+    wandb_entity: Optional[str] = field(
+        default=None, metadata={"help": "Where to store the wandb logfiles."}
+    )
 
     def to_dict(self):
         """
@@ -381,6 +384,10 @@ class FtArguments:
         default=None, metadata={"help": "Comma separated list of target tokens when using the lm_head for prediction, e.g. ĠYes,ĠNo"}
     )
 
+    kl_type: Optional[str] = field(
+        default=None, metadata={"help": "Comma separated list of target tokens when using the lm_head for prediction, e.g. ĠYes,ĠNo"}
+    )
+
     target_tokens_logits_only: bool = field(
         default=False,
         metadata={
@@ -485,6 +492,14 @@ class FtArguments:
                 "When using deepspeed specify the stage to support weight logging."
             ),
             "choices": [None, 2, 3],
+        },
+    )
+    num_shots: int = field(
+        default=16,
+        metadata={
+            "help": (
+                "Total number of demonstrations in the context."
+            )
         },
     )
 
