@@ -5,6 +5,8 @@
 
 ## Abstract
 
+THIS REPO IS BASED ON https://github.com/uds-lsv/llmft REPO THAT CONTAINS THE CODE FOR THE PAPER https://aclanthology.org/2023.findings-acl.779.pdf by Mosbach et al
+
 Large Language Models (LLMs) excel in reasoning and knowledge extraction, in part due to in-context learning (ICL). While ICL allows for learning during inference from multiple examples, its challenges include high memory consumption due to long context, necessitating the investigation of alternative methods. This project explored context distillation (CD), which involves fine-tuning models by leveraging KL divergence, for natural language inference (NLI) as an alternative to ICL. In-domain and out-of-domain accuracy, execution time, and memory requirements were used to compare CD and ICL. Findings suggest that CD is a promising method for efficient LLM learning, with potential applications in tasks such as long dialogue conversations, question answering from large PDF files, and code autocompletion.
 
 # This repo
